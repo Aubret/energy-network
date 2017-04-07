@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<node id="7">
+    <link>
+        <joule>5</joule>
+        <capacity>40</capacity>
+        <congestion>0</congestion>
+        <node id="8">
+            <link>
+                <joule>3</joule>
+                <capacity>20</capacity>
+                <congestion>0</congestion>
+                <prosumer id="2">
+                </prosumer>
+            </link>
+            <link>
+                <joule>1</joule>
+                <capacity>30</capacity>
+                <congestion>0</congestion>
+                <prosumer id="3"></prosumer>
+            </link>
+        </node>
+    </link>
+    <link>
+        <joule>1</joule>
+        <capacity>20</capacity>
+        <congestion>0</congestion>
+        <node id="9">
+            <link>
+                <joule>1</joule>
+                <capacity>20</capacity>
+                <congestion>0</congestion>
+                <prosumer id="1"></prosumer>
+            </link>
+        </node>
+    </link>
+    <link>
+        <joule>2</joule>
+        <capacity>10</capacity>
+        <congestion>0</congestion>
+        <node id="10">
+            <link>
+                <joule>1</joule>
+                <capacity>20</capacity>
+                <congestion>0</congestion>
+                <prosumer id="4"></prosumer>
+            </link>
+            <link>
+                <joule>1</joule>
+                <capacity>20</capacity>
+                <congestion>0</congestion>
+                <prosumer id="5"></prosumer>
+            </link>
+            <link>
+                <joule>4</joule>
+                <capacity>10</capacity>
+                <congestion>0</congestion>
+                <prosumer id="6"></prosumer>
+            </link>
+        </node>
+    </link>
+</node>
