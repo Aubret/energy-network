@@ -3,14 +3,14 @@ package modele;
 public class Offer {
     private static int compteur=0 ;
     private int id ;
-    private int amount ;
+    private Double amount ;
     private double quantity ;
     private double losses ;
     private double congestion_cost ;
     private double totalQuantity ;
     private boolean evaluate ; // Si l'offre a été étudiée
 
-    public Offer(int amount, double quantity){
+    public Offer(Double amount, double quantity){
         this.setAmount(amount);
         this.setQuantity(quantity);
         this.evaluate = false ;
@@ -19,11 +19,11 @@ public class Offer {
 
     }
 
-    public int getAmount() {
+    public Double getAmount() {
         return amount;
     }
 
-    public void setAmount(int amount) {
+    public void setAmount(Double amount) {
         this.amount = amount;
     }
 

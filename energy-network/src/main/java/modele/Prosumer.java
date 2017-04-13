@@ -71,25 +71,23 @@ public class Prosumer extends Node {
     }
 
     public void ChoosePartnersConcession(){
-        this.strategy.checkEnd(this) ;
+        if(this.isBuyer()){
+            System.out.println("\nbuyer -- need "+this.energyLeft());
+        }else {
+            System.out.println("\nseller -- need "+this.energyLeft());
+        }
+        this.strategy.checkEnd(this);
         if(this.isTerminate()){
-            System.out.println("great !!! its over");
+            System.out.println("nothing else to do");
         }else{
-            ArrayList<Pair<Prosumer, Integer>> choose ;
-            if(this.isBuyer()){
-                System.out.println("buyer");
-                choose = strategy.chooseSellerPartnerConcession(this) ;
-            }else{
-                System.out.println("seller");
-                choose = strategy.chooseBuyerPartnerConcession(this) ;// ON choisit les partenaires
-            }
+            System.out.println("Look for concessions");
+            ArrayList<Pair<Prosumer, Double>> choose ;
+            choose = this.isBuyer() ? strategy.chooseSellerPartnerConcession(this) : strategy.chooseBuyerPartnerConcession(this) ;// ON choisit les partenaires
             if(choose != null) {
-                System.out.println(this.getId()+" make concessions");
-                for (Pair<Prosumer, Integer> ite : choose) {
+                System.out.println(this.getId()+" make concessions à "+choose.size()+" prosumers");
+                for (Pair<Prosumer, Double> ite : choose) {
                     strategy.makeConcession(this, ite.getKey(), ite.getValue()); // On fait les concessions
                 }
-            }else{
-                System.out.println("solving problem");
             }
 
         }
@@ -106,6 +104,7 @@ public class Prosumer extends Node {
      * @return
      */
     public double energyLeft(){
+        //System.out.println("energyleft :"+this.getEnergy() +" "+ this.getEnergySend() +" "+ this.getEnergyReceived());
         return this.getEnergy() - this.getEnergySend() + this.getEnergyReceived();
     }
 

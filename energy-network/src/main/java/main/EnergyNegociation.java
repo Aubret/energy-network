@@ -1,9 +1,6 @@
 package main;
 
-import modele.Link;
-import modele.Node;
-import modele.PowerSystem;
-import modele.Prosumer;
+import modele.*;
 import snl.ccss.jpowerflow.dc.DCSolver;
 import strategy.negociationStrategy;
 
@@ -24,8 +21,10 @@ public class EnergyNegociation {
     private List<Node> bus ; // all the nodes
     private ArrayList<Prosumer> prosumers ;
     private HashMap<Link, Double> hm ;
+    private negociationStrategy strategy ;
 
     public EnergyNegociation(File init, negociationStrategy strategy){
+        this.strategy = strategy ;
         this.prosumers =new ArrayList<Prosumer>();
         Node root = new Node();
         try {
@@ -75,15 +74,18 @@ public class EnergyNegociation {
     public void initNegociation(){
         boolean seller =false ;
         boolean buyer = false ;
-        while( !seller || ! buyer || this.prosumers.get(0).isBuyer()) {// On veut qu'il y ait au moins un vendeur et un acheteur
+        double energyquantity = -1 ;
+        while( !seller || ! buyer || this.prosumers.get(0).isBuyer() || energyquantity < 0) {// On veut qu'il y ait au moins un vendeur et un acheteur
             // est-ce que le prosumer est acheteur ou vendeur
             seller = false ;
             buyer= false ;
+            energyquantity = 0;
             for (Prosumer prosumer : this.prosumers) {
                 prosumer.changeGenerateEnergy(); // Pour tester, à enlever
                 prosumer.estimateState();
                 seller=!prosumer.isBuyer() || seller;
                 buyer=prosumer.isBuyer() || buyer ;
+                energyquantity += prosumer.getEnergy() ;
 
             }
         }
@@ -96,14 +98,24 @@ public class EnergyNegociation {
         for ( Prosumer prosumer : this.prosumers){
             prosumer.sendFirstProposals();
         }
-        System.out.println("Fin d'envoi des premières offres");
-        while(this.stillCanNegociate()) { // On répète les concessions jusqu'à la fin
+        System.out.println("Fin d'envoi des premières offres\n");
+        int i=0 ;
+        while(this.stillCanNegociate() && i < 10) { // On répète les concessions jusqu'à la fin
             for (Prosumer prosumer : this.prosumers) {
                 prosumer.ChoosePartnersConcession();
             }
-            System.out.println("Fin d'une étape de concession");
+            i++ ;
+            System.out.println("Fin d'une étape de concession--------------------------------------- \n");
         }
         System.out.println("fin du programme");
+
+        //Affichage des accords
+        ArrayList<Accord> accords = strategy.getAccords() ;
+        for( Accord accord : accords){
+            Offer offer = accord.getOffer() ;
+            Partner partner = accord.getPartner() ;
+            System.out.println(partner.getBuyer().getId()+" achète "+offer.getQuantity()+" pour "+offer.getAmount()+" à "+partner.getSeller().getId());
+        }
     }
 
     /**
@@ -115,7 +127,6 @@ public class EnergyNegociation {
         boolean seller = false ;
         for(Prosumer prosumer : this.prosumers){
             if(!prosumer.isTerminate()){
-                System.out.println(prosumer.getId());
                 if(prosumer.isBuyer()){
                     buyer = true ;
                 }else{

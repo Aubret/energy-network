@@ -13,16 +13,20 @@ import java.util.Map;
 // Doute sur le calcule du zeuten index !
 
 public class zeuten implements negociationStrategy {
-    private int tarifMax;
-    private int tarifMin ;
+    private double tarifMax;
+    private double tarifMin ;
     private PowerSystem powerSystem ;
     private DCSolver solver ;
+    private ArrayList<Accord> accords ;
+    private double approximation ;
 
 
-    public zeuten(int tarifMin, int tarifMax){
+    public zeuten(double tarifMin, double tarifMax, double approximation){
         this.tarifMax=tarifMax;
         this.tarifMin=tarifMin ;
         this.solver = new DCSolver() ;
+        this.accords = new ArrayList<Accord>();
+        this.approximation = approximation ;
     }
 
     /**
@@ -54,7 +58,19 @@ public class zeuten implements negociationStrategy {
     }
 
     /**
+     * Recommence négociation pour un partenariat
+     * @param partner
+     */
+    private void startNegociation(Partner partner){
+        double quantity = Math.min(Math.abs(partner.getBuyer().energyLeft()), Math.abs(partner.getSeller().energyLeft()));
+        partner.setBuyerProposition(new Offer(this.tarifMin, quantity ));
+        partner.setSellerProposition(new Offer(this.tarifMax, quantity));
+        partner.setToConsider(false);
+    }
+
+    /**
      * Simulation  d'une offre pour le calcul des pertes  de congestion et de l'effet joule
+     * le premier prosumer doit être celui qui recoit
      * @param prosumer
      * @param otherProsumer
      * @param offer
@@ -66,23 +82,25 @@ public class zeuten implements negociationStrategy {
         double losses=0 ;
         double congestion_costs=0 ;
         prosumer.setEnergyReceived(offer.getQuantity());
-        while( offer.getQuantity() + losses > otherProsumer.getEnergySend() +1 ) {
+        while( offer.getQuantity() + losses > otherProsumer.getEnergySend() +0.5 || congestion_costs == 0 ) {
             otherProsumer.setEnergySend(offer.getQuantity()+losses); // On augmente l'offre d'énergie
             this.solver.solve(this.powerSystem);
             HashMap<Link, Double> hm = this.solver.getMwFlows();
             losses = 0;
-            congestion_costs = 0;
+            congestion_costs = 0.001;
             for (Map.Entry<Link, Double> entry : hm.entrySet()) {
                 losses += entry.getKey().getJoule() * entry.getValue() / 100; // Pertes sur chaque lien
                 congestion_costs += 5 * entry.getValue() / entry.getKey().getCapacity() ;
-                System.out.println(entry.getValue()+" and lost : "+losses+" on the link between "+entry.getKey().getFirstNode().getId()+" and "+entry.getKey().getSecondNode().getId());
+                //System.out.println(entry.getValue()+" and lost : "+losses+" on the link between "+entry.getKey().getFirstNode().getId()+" and "+entry.getKey().getSecondNode().getId());
             }
         }
         offer.setLosses(losses);
-        offer.setCongestion_cost(congestion_costs);
+        offer.setCongestion_cost(Math.abs(congestion_costs));
         offer.setTotalQuantity(otherProsumer.getEnergySend() +1);
+        offer.setEvaluate(true);
         prosumer.setEnergyReceived(temp);
         otherProsumer.setEnergySend(temp2);
+        //System.out.println("congestion in simulation : "+offer.getCongestion_cost());
         if(otherProsumer.getEnergySend() > otherProsumer.getEnergy()){
             return false ; // le prosumer n'a pas assez d'énergie en prenant en compte les pertes
         }
@@ -95,26 +113,22 @@ public class zeuten implements negociationStrategy {
      * @param otherProsumer
      * @return
      */
-    private double calculUtility(Prosumer prosumer, Prosumer otherProsumer){
+    private double calculUtility(Prosumer prosumer, Prosumer otherProsumer, Offer offer){
         Partner partner = prosumer.getPartners().get(otherProsumer) ;
-        Offer offer ;
+        //Offer offer ;
         if(prosumer.isBuyer()){
-            offer = partner.getSellerProposition() ;
-            if(simulate (prosumer, otherProsumer, offer) ){
-                return Math.exp(-(partner.getBuyerProposition().getQuantity()
-                        - partner.getSellerProposition().getQuantity()))
-                        / (partner.getSellerProposition().getAmount() + offer.getCongestion_cost()); // couts de congestion à 0
-            }
+            //System.out.println(" el :"+Math.abs(prosumer.energyLeft())+"  q :"+offer.getQuantity()+" a: "+offer.getAmount());
+            double ut= Math.exp(-(Math.abs(prosumer.energyLeft())
+                    - offer.getQuantity()))
+                    / (offer.getAmount() + offer.getCongestion_cost());
+            return ut ;
         }else {
-            offer = partner.getBuyerProposition();
-            if (simulate(otherProsumer, prosumer, offer)) {
-                return Math.exp(-(partner.getSellerProposition().getQuantity()
-                        - partner.getBuyerProposition().getQuantity()
-                        + offer.getLosses())) * (partner.getBuyerProposition().getAmount() - offer.getCongestion_cost());
-            }
+            //System.out.println(" el :"+Math.abs(prosumer.energyLeft())+"  q :"+offer.getQuantity()+" a: "+offer.getAmount()+" c : "+offer.getCongestion_cost());
+            double ut =  Math.exp(-(Math.abs(prosumer.energyLeft())
+                    - offer.getQuantity()
+                    + offer.getLosses())) * (offer.getAmount() - offer.getCongestion_cost());
+            return ut ;
         }
-        return 0 ;
-
     }
 
     /**
@@ -124,36 +138,49 @@ public class zeuten implements negociationStrategy {
     public void checkEnd(Prosumer p) {
         double mineUtility ;
         double hisUtility ;
-        if( (p.isBuyer() && p.energyLeft() >0 ) || (!p.isBuyer() && p.energyLeft() < 0 )  ){
-            p.stopNegociations(); // Un interlocuteur a accepté son offre et il n'a donc plus rien
+        if(p.getPartners().isEmpty()){// Il a plus aucun partenaires, il arrete donc les négociations/
+            p.stopNegociations();
         }
         for( Map.Entry<Prosumer, Partner> ite: p.getPartners().entrySet()){
+            /*if(!p.equals(ite.getValue().hasToOffer()) ){ // Si c'est à lui de faire une offre
+                continue ;
+            }*/
             Prosumer other = ite.getKey();
-            mineUtility = this.calculUtility(p, other) ;
-            hisUtility = this.calculUtility(other, p) ;
-            System.out.println(mineUtility+" > "+hisUtility);
-            if(mineUtility > hisUtility && hisUtility != 0){
-                System.out.println("on est d'accord");
+            Offer offer = p.isBuyer() ? ite.getValue().getSellerProposition() : ite.getValue().getBuyerProposition() ;
+            //On remplit le taux de congestion et les pertes de l'offre en simulant sur le réseau
+            boolean success = p.isBuyer() ? simulate (p, ite.getKey(), offer) : simulate(ite.getKey(), p, offer); // est-ce que le vendeur peut gérer les pertes
+            mineUtility = this.calculUtility(p, other, offer) ;
+            hisUtility = this.calculUtility(other, p, offer) ;
+            System.out.println("compare utility : "+hisUtility+" <= "+mineUtility);
+            if( hisUtility <= mineUtility ){ // Cas où on accepte l'accord
+                System.out.println("The deal is accepted");
+                Offer agreedOffer ;
                 if(p.isBuyer()) {
-                    Offer agreedOffer = ite.getValue().getSellerProposition() ;
+                    agreedOffer = ite.getValue().getSellerProposition() ;
                     p.setEnergyReceived(p.getEnergyReceived() + agreedOffer.getQuantity());
-                    other.setEnergySend(other.getEnergySend()+agreedOffer.getQuantity());
-                    agreedOffer.setEvaluate(true);
-                    if( p.energyLeft() >= 0 ) // Pas besoin de continuer d'acheter
+                    other.setEnergySend(other.getEnergySend()+agreedOffer.getQuantity() +agreedOffer.getLosses());
+                    this.startNegociation(ite.getValue());
+                    if( p.energyLeft() >= approximation ) { // Pas besoin de continuer d'acheter
                         p.stopNegociations();
-                        return ;
+                    }
+                    if(other.energyLeft() <= -approximation){ // L'autre n'a plus besoin de vendre
+                        other.stopNegociations();
+                    }
                 }else{
-                    Offer agreedOffer = ite.getValue().getBuyerProposition() ;
+                    agreedOffer = ite.getValue().getBuyerProposition() ;
                     p.setEnergySend(p.getEnergyReceived() + agreedOffer.getQuantity());
                     other.setEnergyReceived(other.getEnergyReceived()+ agreedOffer.getQuantity());
-                    agreedOffer.setEvaluate(true);
-                    if( p.energyLeft() <= 0 ) { // Pas besoin de continuer de vendre
+                    this.startNegociation(ite.getValue());
+                    if( p.energyLeft() <= -approximation ) { // Pas besoin de continuer de vendre
                         p.stopNegociations() ;
-                        return;
+                    }
+                    if( other.energyLeft() >= approximation){
+                        other.stopNegociations();
                     }
                 }
-            }
+                this.accords.add(new Accord( agreedOffer, ite.getValue()) ); // On ajoute l'accord
 
+            }
         }
     }
 
@@ -161,32 +188,43 @@ public class zeuten implements negociationStrategy {
      * Choix de partenaires avec résolution de programme de contrainte
      * @return
      */
-    public ArrayList<Pair<Prosumer, Integer>> chooseSellerPartnerConcession(Prosumer prosumer) {
-        ArrayList<Pair<Prosumer, Integer>> result = new ArrayList();
+    public ArrayList<Pair<Prosumer, Double>> chooseSellerPartnerConcession(Prosumer prosumer) {
+        ArrayList<Pair<Prosumer, Double>> result = new ArrayList();
         Model model = new Model("seller choice") ;
         ArrayList<Partner> concessionsPartners = this.getPossiblesPartners(prosumer);
         int size = concessionsPartners.size() ;
-        if(size==0)
-            return null ;
+        if(size==0) {
+            System.out.println("aucune concession à faire");
+            return null;
+        }
         IntVar[] qs = new IntVar[size];
         int[] coeffs = new int[size];
-        IntVar sum = model.intVar("sum", 0,10000);
+        IntVar sum = model.intVar("sum", 0,1000000000);
         for( int i =0 ; i<size ; i++ ){
             Offer offer = concessionsPartners.get(i).getSellerProposition() ;
-            coeffs[i]= Double.valueOf(offer.getCongestion_cost() + offer.getAmount()).intValue() ;
-            qs[i] = model.intVar("q"+i, 0, Math.abs(Double.valueOf(concessionsPartners.get(i).getSeller().getEnergy()).intValue()));
+            coeffs[i]= Double.valueOf(1000*(offer.getCongestion_cost() + offer.getAmount())).intValue() ;
+            //System.out.println(1000+" * "+offer.getCongestion_cost()+" + "+offer.getAmount());
+            qs[i] = model.intVar("q"+i, 0, Math.abs(Double.valueOf(1000*(concessionsPartners.get(i).getSeller().energyLeft())).intValue()));
         }
         model.scalar(qs, coeffs, "=", sum).post() ; // On effectue la somme des multiplications, on met la somme dans sum
-        model.sum(qs, "=",  Math.abs(Double.valueOf(prosumer.energyLeft()).intValue())).post();
+        model.sum(qs, "=",  Math.abs(Double.valueOf(1000*(prosumer.energyLeft())).intValue())).post();
         model.setObjective(model.MINIMIZE, sum); // On veut minimiser sum
         Solver solver = model.getSolver();
         if(solver.solve()){
+            //  System.out.println("sum : "+sum);
             for(int i=0; i< size ; i++){
-                if(qs[i].getValue() > 0) // On ajoute l'ensemble des partenaires au résultat avec la quantité
-                    result.add(new Pair<Prosumer, Integer>(concessionsPartners.get(i).getSeller(), qs[i].getValue() ));
+                /*System.out.println(" coeff : "+coeffs[i]);
+                System.out.println("qs1 : "+qs[i].getValue());
+                System.out.println(" qsi max : "+Math.abs(Double.valueOf(1000*(concessionsPartners.get(i).getSeller().energyLeft()))));
+                System.out.println(qs[i].getValue()+" = "+Math.abs(Double.valueOf(1000*(prosumer.energyLeft())).intValue()));
+                System.out.println(qs[i].getValue()+" * "+coeffs[i]+" = "+sum);
+                System.out.println("qs : "+Double.valueOf(qs[i].getValue())/1000);*/
+                if(qs[i].getValue() > 0){ // On ajoute l'ensemble des partenaires au résultat avec la quantité
+                    result.add(new Pair<Prosumer, Double>(concessionsPartners.get(i).getSeller(), Double.valueOf(qs[i].getValue())/1000 ));
+                }
             }
-            System.out.println("somme is : "+sum.getValue());
         }else{
+            System.out.println("problem solving");
             return null ;
         }
         return result ;
@@ -197,8 +235,8 @@ public class zeuten implements negociationStrategy {
      * @param prosumer
      * @return
      */
-    public ArrayList<Pair<Prosumer, Integer>> chooseBuyerPartnerConcession(Prosumer prosumer){
-        ArrayList<Pair<Prosumer, Integer>> result = new ArrayList();
+    public ArrayList<Pair<Prosumer, Double>> chooseBuyerPartnerConcession(Prosumer prosumer){
+        ArrayList<Pair<Prosumer, Double>> result = new ArrayList();
         Model model = new Model() ;
         ArrayList<Partner> concessionsPartners = this.getPossiblesPartners(prosumer);
         int size = concessionsPartners.size() ;
@@ -207,24 +245,34 @@ public class zeuten implements negociationStrategy {
         IntVar[] qb = new IntVar[size];
         int[] coeffs = new int[size];
         int[] coeffsLosses = new int[size];
-        IntVar sum = model.intVar("sum", 0, 10000);
-        System.out.println(size);
+        IntVar sum = model.intVar("sum", 0, 100000000);
         for( int i =0 ; i<size ; i++ ){
             Offer offer = concessionsPartners.get(i).getBuyerProposition() ;
-            coeffsLosses[i] = 1+Double.valueOf(offer.getLosses()).intValue() ;
-            coeffs[i]= Double.valueOf(offer.getCongestion_cost() + offer.getAmount()).intValue() ;
-            qb[i] = model.intVar("q"+i, 0, Math.abs(Double.valueOf(concessionsPartners.get(i).getBuyer().getEnergy()).intValue()));
+            coeffsLosses[i] = Double.valueOf(1000+1000*offer.getLosses()).intValue() ;
+            coeffs[i]= Double.valueOf(1000*(offer.getCongestion_cost() + offer.getAmount())).intValue() ;
+            //System.out.println(" c : "+offer.getCongestion_cost()+" l : "+offer.getLosses()) ;
+            qb[i] = model.intVar("q"+i, 0, Math.abs(Double.valueOf(1000*concessionsPartners.get(i).getBuyer().energyLeft()).intValue()));
         }
         model.scalar(qb, coeffs, "=", sum).post() ; // On effectue la somme des multiplications, on met la somme dans sum
-        model.scalar(qb, coeffsLosses, "<=", Double.valueOf(prosumer.energyLeft()).intValue()).post();
+        model.scalar(qb, coeffsLosses, "<=", Double.valueOf(1000000*prosumer.energyLeft()).intValue()).post();
         model.setObjective(model.MAXIMIZE, sum); // On veut maximiser sum
         Solver solver = model.getSolver();
         if(solver.solve()){
+            //System.out.println("sum  : "+sum);
             for(int i=0; i< size ; i++){
-                if(qb[i].getValue() > 0) // On ajoute l'ensemble des partenaires au résultat avec la quantité
-                    result.add(new Pair<Prosumer, Integer>(concessionsPartners.get(i).getBuyer(), qb[i].getValue() ));
+                /*System.out.println("losses : "+coeffsLosses[i]);
+                System.out.println(" coeff : "+coeffs[i]);
+                System.out.println("qb1 : "+qb[i].getValue());
+                System.out.println(qb[i].getValue()+"*"+coeffs[i]+" = "+sum);
+                System.out.println(qb[i].getValue()+"*"+coeffsLosses[i]+"( "+qb[i].getValue()*coeffsLosses[i]+" ) <= "+Double.valueOf(1000000*prosumer.energyLeft()).intValue());
+                System.out.println("qb : "+Double.valueOf(qb[i].getValue())/1000);*/
+                if(qb[i].getValue() > 0) { // On ajoute l'ensemble des partenaires au résultat avec la quantité
+                    result.add(new Pair<Prosumer, Double>(concessionsPartners.get(i).getBuyer(), Double.valueOf(qb[i].getValue())/1000));
+                    //System.out.println("ajout d'une concession");
+                }
             }
         }else{
+            System.out.println("bug");
             return null ;
         }
         return result ;
@@ -236,20 +284,23 @@ public class zeuten implements negociationStrategy {
      * @param otherProsumer
      * @param quantity
      */
-    public void makeConcession(Prosumer prosumer, Prosumer otherProsumer, int quantity){
-        double mineUtility = this.calculUtility(prosumer, otherProsumer);
-        double hisUtility = this.calculUtility(otherProsumer, prosumer);
-        double zeutenIndex = (hisUtility - mineUtility)/hisUtility ;
+    public void makeConcession(Prosumer prosumer, Prosumer otherProsumer, Double quantity){
+        Partner partner = prosumer.getPartners().get(otherProsumer) ;
+        Double newTarif ;
         if(prosumer.isBuyer()) {
-            Partner partner = prosumer.getPartners().get(otherProsumer) ;
-            int newTarif = Double.valueOf(zeutenIndex + partner.getBuyerProposition().getAmount()).intValue();
+            newTarif = (Double)partner.getBuyerData() + partner.getBuyerProposition().getAmount();
             partner.setBuyerProposition((new Offer(newTarif, quantity)));
-            System.out.println("new tarif is : "+newTarif);
+            System.out.println("Buyer's new tarif is : "+newTarif+ " with quantity "+quantity);
         }else{
-            Partner partner = otherProsumer.getPartners().get(otherProsumer) ;
-            int newTarif = Double.valueOf(zeutenIndex + partner.getSellerProposition().getAmount()).intValue();
+            /*double mineUtility = this.calculUtility(prosumer, otherProsumer, partner.getSellerProposition());// Sa proposition
+            double hisUtility = this.calculUtility(prosumer, otherProsumer, partner.getBuyerProposition()); // Avec celle de l'autre
+            double zeutenIndex = this.calculZeuthenIndex(mineUtility, hisUtility) ;*/
+            newTarif = - (Double)partner.getSellerData() + partner.getSellerProposition().getAmount();
             partner.setSellerProposition((new Offer(newTarif, quantity)));
-            System.out.println("new tarif is : "+newTarif);
+            System.out.println("Seller's new tarif is : "+newTarif+ " with quantity "+quantity);
+        }
+        if( newTarif < this.tarifMin || newTarif > this.tarifMax){
+            System.out.println("LE TARIF EST MAUVAIS "+newTarif);
         }
     }
 
@@ -257,11 +308,46 @@ public class zeuten implements negociationStrategy {
     private ArrayList<Partner> getPossiblesPartners(Prosumer prosumer){
         ArrayList<Partner> concessionsPartners = new ArrayList<Partner>() ;
         for (Map.Entry<Prosumer, Partner> ite : prosumer.getPartners().entrySet()) {
-            if(prosumer.equals(ite.getValue().hasToOffer()) ){ // Si c'est à lui de faire une offre
-                concessionsPartners.add(ite.getValue());
+            if( ite.getKey().isBuyer() && ite.getKey().energyLeft() >= 0 )
+                continue ;
+            if(!ite.getKey().isBuyer() && ite.getKey().energyLeft() <= 0)
+                continue ;
+            if(!ite.getValue().isToConsider()){
+                ite.getValue().setToConsider(true);
+                continue ;
             }
+            if(!ite.getValue().getSellerProposition().isEvaluate())
+                simulate(ite.getValue().getBuyer(),ite.getValue().getSeller(),ite.getValue().getSellerProposition());
+            if(!ite.getValue().getBuyerProposition().isEvaluate())
+                simulate(ite.getValue().getBuyer(),ite.getValue().getSeller(),ite.getValue().getBuyerProposition());
+
+
+
+            double buyersUtility = calculUtility(ite.getValue().getBuyer(), ite.getValue().getSeller(),ite.getValue().getBuyerProposition());
+            double buyersUtilityWithSellersOffer = calculUtility(ite.getValue().getBuyer(), ite.getValue().getSeller(),ite.getValue().getSellerProposition());
+            Double zBuyer = this.calculZeuthenIndex(buyersUtility, buyersUtilityWithSellersOffer);
+            ite.getValue().setBuyerData(zBuyer);
+
+            simulate(ite.getValue().getBuyer(),ite.getValue().getSeller(),ite.getValue().getSellerProposition());
+            double sellersUtility = calculUtility(ite.getValue().getSeller(), ite.getValue().getBuyer(),ite.getValue().getSellerProposition());
+            double sellersUtilityWithBuyersOffer = calculUtility(ite.getValue().getSeller(), ite.getValue().getBuyer(),ite.getValue().getBuyerProposition());
+            Double zSeller = this.calculZeuthenIndex(sellersUtility, sellersUtilityWithBuyersOffer);
+            ite.getValue().setSellerData(zSeller);
+            //System.out.println(buyersUtility+" "+buyersUtilityWithSellersOffer);
+            System.out.println(" zbuyer : "+zBuyer+" zSeller : "+zSeller);
+            if( ( zBuyer <= zSeller && prosumer.isBuyer() ) || ( zSeller <= zBuyer && !prosumer.isBuyer()))
+                concessionsPartners.add(ite.getValue());
+
+            /*if(prosumer.equals(ite.getValue().hasToOffer()) ){ // Si c'est à lui de faire une offre
+                concessionsPartners.add(ite.getValue());
+            }*/
         }
         return concessionsPartners ;
+    }
+
+
+    private double calculZeuthenIndex(double utilityHisOffer, double utilityOtherOffer){
+        return ( utilityHisOffer - utilityOtherOffer ) / utilityHisOffer ;
     }
 
     public PowerSystem getPowerSystem() {
@@ -270,5 +356,9 @@ public class zeuten implements negociationStrategy {
 
     public void setPowerSystem(PowerSystem powerSystem) {
         this.powerSystem = powerSystem;
+    }
+
+    public ArrayList<Accord> getAccords(){
+        return this.accords ;
     }
 }
