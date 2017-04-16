@@ -10,23 +10,20 @@ import java.util.Map;
 
 @XmlRootElement(name="prosumer")
 public class Prosumer extends Node {
-    private double energyNeed ;
-    private double energyGenerated ;
-    private boolean buyer ;
-    private HashMap<Prosumer, Partner> partners ;
+    private Double energyNeed ; // énergie nécessaire au prosumer
+    private Double energyGenerated ; // énergie produite par le prosumer
+    private boolean buyer ;// S'il achète ou vend
+    private HashMap<Prosumer, Partner> partners ; // Tous ses partenaires
     private negociationStrategy strategy ;
-    private double energy ;
+    private double energy ; // Différence de l'énergie générée et nécessaire
     private double energyReceived ; // energy for power flow program
     private double energySend ;
     private boolean terminate ; // S'il a terminé
 
 
     public Prosumer(){
-        this.setEnergyNeed(15);
-        this.setEnergyGenerated(10+Math.random()*10);
         this.setEnergyReceived(0);
         this.setEnergySend(0);
-        this.setEnergy(getEnergyGenerated() - this.getEnergyNeed());
         this.partners = new HashMap<Prosumer, Partner>() ;
         this.setTerminate(false);
     }
@@ -39,6 +36,11 @@ public class Prosumer extends Node {
     }
 
     public void estimateState(){
+        if(this.getEnergyNeed() == null)
+            this.setEnergyNeed(15.0);
+        if(this.getEnergyGenerated() == null )
+            this.setEnergyGenerated(10.0+Math.random()*10);
+        this.setEnergy(getEnergyGenerated() - this.getEnergyNeed());
         if(this.getEnergyGenerated() < this.getEnergyNeed()){
             this.setBuyer(true);
         }else{
@@ -165,19 +167,21 @@ public class Prosumer extends Node {
         this.energySend = energySend;
     }
 
-    public double getEnergyNeed() {
+    public Double getEnergyNeed() {
         return energyNeed;
     }
 
-    public void setEnergyNeed(double energyNeed) {
+    @XmlElement(name="energyNeed",nillable = true)
+    public void setEnergyNeed(Double energyNeed) {
         this.energyNeed = energyNeed;
     }
 
-    public double getEnergyGenerated() {
+    public Double getEnergyGenerated() {
         return energyGenerated;
     }
 
-    public void setEnergyGenerated(double energyGenerated) {
+    @XmlElement(name="energyGenerated",nillable = true)
+    public void setEnergyGenerated(Double energyGenerated) {
         this.energyGenerated = energyGenerated;
     }
 

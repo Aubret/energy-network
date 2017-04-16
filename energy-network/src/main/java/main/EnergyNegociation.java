@@ -72,7 +72,7 @@ public class EnergyNegociation {
     }
 
     public void initNegociation(){
-        boolean seller =false ;
+        /*boolean seller =false ;
         boolean buyer = false ;
         double energyquantity = -1 ;
         while( !seller || ! buyer || this.prosumers.get(0).isBuyer() || energyquantity < 0) {// On veut qu'il y ait au moins un vendeur et un acheteur
@@ -88,6 +88,11 @@ public class EnergyNegociation {
                 energyquantity += prosumer.getEnergy() ;
 
             }
+        }*/
+        // ON détermine si le prosumer est un vendeur ou acheteur
+        for (Prosumer prosumer : this.prosumers) {
+            prosumer.estimateState();
+            System.out.println(prosumer.getEnergy());
         }
         //Recherche des partenaires de négociation
         for ( Prosumer prosumer : this.prosumers){
@@ -100,7 +105,15 @@ public class EnergyNegociation {
         }
         System.out.println("Fin d'envoi des premières offres\n");
         int i=0 ;
+        ArrayList<Prosumer> prosumerFinished = new ArrayList<Prosumer>();
         while(this.stillCanNegociate() && i < 10) { // On répète les concessions jusqu'à la fin
+            for(Prosumer prosumer : this.prosumers){ // ON récupéère tous les prosumers qui ont terminé de négocier
+                if( prosumer.isTerminate() ){
+                    prosumerFinished.add(prosumer);
+                }
+            }
+            this.prosumers.removeAll(prosumerFinished); // On enlève des prosumers négociants tous ceux qui ont terminé
+
             for (Prosumer prosumer : this.prosumers) {
                 prosumer.ChoosePartnersConcession();
             }
@@ -108,14 +121,32 @@ public class EnergyNegociation {
             System.out.println("Fin d'une étape de concession--------------------------------------- \n");
         }
         System.out.println("fin du programme");
+    }
 
-        //Affichage des accords
+    /**
+     * Affichage des accords
+     */
+    public void printResult(){
         ArrayList<Accord> accords = strategy.getAccords() ;
         for( Accord accord : accords){
             Offer offer = accord.getOffer() ;
             Partner partner = accord.getPartner() ;
             System.out.println(partner.getBuyer().getId()+" achète "+offer.getQuantity()+" pour "+offer.getAmount()+" à "+partner.getSeller().getId());
         }
+    }
+
+    public void checkResult(){
+        double energyToSold = 0 ;
+        double energyToBuy = 0 ;
+        for(Prosumer prosumer : this.prosumers){
+            if (prosumer.isBuyer()){
+                energyToBuy += prosumer.energyLeft() ;
+            }else{
+                energyToSold += prosumer.energyLeft() ;
+            }
+        }
+        System.out.println("\n Energie restante à vendre : "+energyToSold);
+        System.out.println("Energie restante à acheter : "+energyToBuy);
     }
 
     /**

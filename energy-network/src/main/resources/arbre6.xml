@@ -10,13 +10,18 @@
                 <capacity>20</capacity>
                 <congestion>0</congestion>
                 <prosumer id="2">
+                    <energyNeed>15.0</energyNeed>
+                    <energyGenerated>8.0</energyGenerated>
                 </prosumer>
             </link>
             <link>
                 <joule>1</joule>
                 <capacity>30</capacity>
                 <congestion>0</congestion>
-                <prosumer id="3"></prosumer>
+                <prosumer id="3">
+                    <energyNeed>5.0</energyNeed>
+                    <energyGenerated>0.0</energyGenerated>
+                </prosumer>
             </link>
         </node>
     </link>
@@ -29,7 +34,10 @@
                 <joule>1</joule>
                 <capacity>20</capacity>
                 <congestion>0</congestion>
-                <prosumer id="1"></prosumer>
+                <prosumer id="1">
+                    <energyNeed>15.0</energyNeed>
+                    <energyGenerated>19.0</energyGenerated>
+                </prosumer>
             </link>
         </node>
     </link>
@@ -42,19 +50,28 @@
                 <joule>1</joule>
                 <capacity>20</capacity>
                 <congestion>0</congestion>
-                <prosumer id="4"></prosumer>
+                <prosumer id="4">
+                    <energyNeed>15.0</energyNeed>
+                    <energyGenerated>20.0</energyGenerated>
+                </prosumer>
             </link>
             <link>
                 <joule>1</joule>
                 <capacity>20</capacity>
                 <congestion>0</congestion>
-                <prosumer id="5"></prosumer>
+                <prosumer id="5">
+                    <energyNeed>2.0</energyNeed>
+                    <energyGenerated>5.0</energyGenerated>
+                </prosumer>
             </link>
             <link>
                 <joule>4</joule>
                 <capacity>10</capacity>
                 <congestion>0</congestion>
-                <prosumer id="6"></prosumer>
+                <prosumer id="6">
+                    <energyNeed>1.0</energyNeed>
+                    <energyGenerated>10.0</energyGenerated>
+                </prosumer>
             </link>
         </node>
     </link>

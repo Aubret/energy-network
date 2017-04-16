@@ -141,10 +141,9 @@ public class zeuten implements negociationStrategy {
         if(p.getPartners().isEmpty()){// Il a plus aucun partenaires, il arrete donc les négociations/
             p.stopNegociations();
         }
+        boolean stop = false ;
+        ArrayList<Prosumer> stopNegociationsProsumers = new ArrayList<Prosumer>();
         for( Map.Entry<Prosumer, Partner> ite: p.getPartners().entrySet()){
-            /*if(!p.equals(ite.getValue().hasToOffer()) ){ // Si c'est à lui de faire une offre
-                continue ;
-            }*/
             Prosumer other = ite.getKey();
             Offer offer = p.isBuyer() ? ite.getValue().getSellerProposition() : ite.getValue().getBuyerProposition() ;
             //On remplit le taux de congestion et les pertes de l'offre en simulant sur le réseau
@@ -157,31 +156,41 @@ public class zeuten implements negociationStrategy {
                 Offer agreedOffer ;
                 if(p.isBuyer()) {
                     agreedOffer = ite.getValue().getSellerProposition() ;
+                    this.accords.add(new Accord( agreedOffer, ite.getValue()) ); // On ajoute l'accord
                     p.setEnergyReceived(p.getEnergyReceived() + agreedOffer.getQuantity());
                     other.setEnergySend(other.getEnergySend()+agreedOffer.getQuantity() +agreedOffer.getLosses());
                     this.startNegociation(ite.getValue());
-                    if( p.energyLeft() >= approximation ) { // Pas besoin de continuer d'acheter
-                        p.stopNegociations();
+                    if(other.energyLeft() <= approximation){ // L'autre n'a plus besoin de vendre
+                        //other.stopNegociations();
+                        stopNegociationsProsumers.add(other);
                     }
-                    if(other.energyLeft() <= -approximation){ // L'autre n'a plus besoin de vendre
-                        other.stopNegociations();
+                    if( p.energyLeft() >= -approximation ) { // Pas besoin de continuer d'acheter
+                        stop =true ;
+                        break ;
                     }
                 }else{
                     agreedOffer = ite.getValue().getBuyerProposition() ;
+                    this.accords.add(new Accord( agreedOffer, ite.getValue()) ); // On ajoute l'accord
                     p.setEnergySend(p.getEnergyReceived() + agreedOffer.getQuantity());
                     other.setEnergyReceived(other.getEnergyReceived()+ agreedOffer.getQuantity());
                     this.startNegociation(ite.getValue());
-                    if( p.energyLeft() <= -approximation ) { // Pas besoin de continuer de vendre
-                        p.stopNegociations() ;
+                    if( other.energyLeft() >= -approximation){
+                        stopNegociationsProsumers.add(other);
+                        //other.stopNegociations();
                     }
-                    if( other.energyLeft() >= approximation){
-                        other.stopNegociations();
+                    if( p.energyLeft() <= approximation ) { // Pas besoin de continuer de vendre
+                        stop = true ;
+                        break ;
                     }
                 }
-                this.accords.add(new Accord( agreedOffer, ite.getValue()) ); // On ajoute l'accord
 
             }
         }
+        for(Prosumer prosumer : stopNegociationsProsumers){
+            prosumer.stopNegociations();
+        }
+        if(stop)
+            p.stopNegociations() ;
     }
 
     /**
@@ -199,7 +208,7 @@ public class zeuten implements negociationStrategy {
         }
         IntVar[] qs = new IntVar[size];
         int[] coeffs = new int[size];
-        IntVar sum = model.intVar("sum", 0,1000000000);
+        IntVar sum = model.intVar("sum", 0,2000000000);
         for( int i =0 ; i<size ; i++ ){
             Offer offer = concessionsPartners.get(i).getSellerProposition() ;
             coeffs[i]= Double.valueOf(1000*(offer.getCongestion_cost() + offer.getAmount())).intValue() ;
@@ -210,6 +219,12 @@ public class zeuten implements negociationStrategy {
         model.sum(qs, "=",  Math.abs(Double.valueOf(1000*(prosumer.energyLeft())).intValue())).post();
         model.setObjective(model.MINIMIZE, sum); // On veut minimiser sum
         Solver solver = model.getSolver();
+        /*System.out.println(" coeff : "+coeffs[0]);
+        System.out.println("qs1 : "+qs[0].getValue());
+        System.out.println(" qsi max : "+Math.abs(Double.valueOf(1000*(concessionsPartners.get(0).getSeller().energyLeft()))));
+        System.out.println(qs[0].getValue()+" = "+Math.abs(Double.valueOf(1000*(prosumer.energyLeft())).intValue()));
+        System.out.println(qs[0].getValue()+" * "+coeffs[0]+" = "+sum);
+        System.out.println("qs : "+Double.valueOf(qs[0].getValue())/1000);*/
         if(solver.solve()){
             //  System.out.println("sum : "+sum);
             for(int i=0; i< size ; i++){
@@ -224,7 +239,7 @@ public class zeuten implements negociationStrategy {
                 }
             }
         }else{
-            System.out.println("problem solving");
+            System.out.println("bug solving");
             return null ;
         }
         return result ;
@@ -240,8 +255,10 @@ public class zeuten implements negociationStrategy {
         Model model = new Model() ;
         ArrayList<Partner> concessionsPartners = this.getPossiblesPartners(prosumer);
         int size = concessionsPartners.size() ;
-        if(size==0)
-            return null ;
+        if(size==0) {
+            System.out.println("Aucune concession à faire");
+            return null;
+        }
         IntVar[] qb = new IntVar[size];
         int[] coeffs = new int[size];
         int[] coeffsLosses = new int[size];
@@ -272,7 +289,7 @@ public class zeuten implements negociationStrategy {
                 }
             }
         }else{
-            System.out.println("bug");
+            System.out.println("bug solving");
             return null ;
         }
         return result ;
