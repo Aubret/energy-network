@@ -18,12 +18,14 @@ public class Prosumer extends Node {
     private double energy ; // Différence de l'énergie générée et nécessaire
     private double energyReceived ; // energy for power flow program
     private double energySend ;
+    private double energyLost ;
     private boolean terminate ; // S'il a terminé
 
 
     public Prosumer(){
         this.setEnergyReceived(0);
         this.setEnergySend(0);
+        this.setEnergyLost(0);
         this.partners = new HashMap<Prosumer, Partner>() ;
         this.setTerminate(false);
     }
@@ -38,8 +40,9 @@ public class Prosumer extends Node {
     public void estimateState(){
         if(this.getEnergyNeed() == null)
             this.setEnergyNeed(15.0);
-        if(this.getEnergyGenerated() == null )
-            this.setEnergyGenerated(10.0+Math.random()*10);
+        if(this.getEnergyGenerated() == null ) {
+            this.setEnergyGenerated(10.0 + Math.random() * 10);
+        }
         this.setEnergy(getEnergyGenerated() - this.getEnergyNeed());
         if(this.getEnergyGenerated() < this.getEnergyNeed()){
             this.setBuyer(true);
@@ -53,6 +56,7 @@ public class Prosumer extends Node {
      * @param prosumers
      */
     public void lookForPartners(ArrayList<Prosumer> prosumers){
+        this.getPartners().clear();
         for(Prosumer prosumer : prosumers){
             if(prosumer  != this) {// Il ne se regarde pas lui même
                 if (!getPartners().containsKey(prosumer)) { // S'ils le sont pas déjà
@@ -72,13 +76,16 @@ public class Prosumer extends Node {
         }
     }
 
-    public void ChoosePartnersConcession(){
+    public boolean ChoosePartnersConcession(){
         if(this.isBuyer()){
             System.out.println("\nbuyer -- need "+this.energyLeft());
         }else {
             System.out.println("\nseller -- need "+this.energyLeft());
         }
-        this.strategy.checkEnd(this);
+        if(!this.strategy.checkEnd(this)) {
+            System.out.println("Negociations restart");
+            return true; // redémarrage des négociations
+        }
         if(this.isTerminate()){
             System.out.println("nothing else to do");
         }else{
@@ -93,6 +100,7 @@ public class Prosumer extends Node {
             }
 
         }
+        return false ;
 
 
     }
@@ -107,7 +115,7 @@ public class Prosumer extends Node {
      */
     public double energyLeft(){
         //System.out.println("energyleft :"+this.getEnergy() +" "+ this.getEnergySend() +" "+ this.getEnergyReceived());
-        return this.getEnergy() - this.getEnergySend() + this.getEnergyReceived();
+        return this.getEnergy() - this.getEnergySend() + this.getEnergyReceived() - this.getEnergyLost();
     }
 
     /**
@@ -196,5 +204,13 @@ public class Prosumer extends Node {
 
     public void setTerminate(boolean terminate) {
         this.terminate = terminate;
+    }
+
+    public double getEnergyLost() {
+        return energyLost;
+    }
+
+    public void setEnergyLost(double energyLost) {
+        this.energyLost = energyLost;
     }
 }

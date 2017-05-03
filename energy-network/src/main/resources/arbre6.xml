@@ -35,7 +35,7 @@
                 <capacity>20</capacity>
                 <congestion>0</congestion>
                 <prosumer id="1">
-                    <energyNeed>15.0</energyNeed>
+                    <energyNeed>20.0</energyNeed>
                     <energyGenerated>19.0</energyGenerated>
                 </prosumer>
             </link>

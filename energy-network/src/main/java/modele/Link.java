@@ -7,7 +7,7 @@ import javax.xml.bind.annotation.*;
 @XmlRootElement(name="link")
 public class Link implements DCPFBranch{
 
-    private int congestion ;
+    private double congestion ;
     private int capacity ;
     private int joule ;
     @XmlTransient
@@ -19,7 +19,7 @@ public class Link implements DCPFBranch{
     private Node secondNode;
 
     public Link(){
-        this.susceptance = 0.5 ;
+        this.susceptance = 10 ;
     }
 
 
@@ -35,13 +35,13 @@ public class Link implements DCPFBranch{
         return this.susceptance;
     }
 
-    public int getCongestion() {
+    public double getCongestion() {
         return congestion;
     }
 
     @XmlElement(name="congestion")
-    public void setCongestion(int congestion) {
-        this.congestion = congestion;
+    public void setCongestion(double congestion) {
+        this.congestion = (double)Math.round(100*congestion)/100;
     }
 
     public int getCapacity() {
@@ -84,4 +84,7 @@ public class Link implements DCPFBranch{
         this.secondNode = secondNode;
     }
 
+    public String toString(){
+        return Double.toString(this.getCongestion()) ;
+    }
 }

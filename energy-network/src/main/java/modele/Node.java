@@ -55,46 +55,21 @@ public class Node implements DCPFBus {
     }
 
     public boolean isSlackBus() {
-        return true;
+        return false;
     }
 
     public double getBusMw() {
         return 0;
     }
 
-    /**
-     * Calcule du chemin entre deux noeuds
-     * @param goal
-     * @param alreadyChecked
-     * @return
-     */
-    public ArrayList<Link> calculeWay(Node goal, ArrayList<Node> alreadyChecked){
-        if(alreadyChecked.contains(this)){
-            return null ;
-        }
-        if(goal.equal(this)){
-            return new ArrayList<Link>() ;
-        }
-        ArrayList<Link> result=null ;
-        alreadyChecked.add(this);
-        int taille=this.links.size() ;
-        int i = 0;
-        while( i < taille && result == null){
-            result = this.links.get(i).getFirstNode().calculeWay(goal, alreadyChecked);
-            if(result == null )
-                result = this.links.get(i).getSecondNode().calculeWay(goal, alreadyChecked);
-            i++ ;
-        }
-        if ( result != null )
-            result.add(this.links.get(i-1)) ;
-        return result ;
-
-    }
-
     public boolean equal(Node p){return p.getId() == this.getId() ;}
 
     public boolean equals(Node n){
         return this.getId() == n.getId() ;
+    }
+
+    public String toString(){
+        return Integer.toString(this.getId());
     }
 
 }

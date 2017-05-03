@@ -5,12 +5,17 @@
         <capacity>20</capacity>
         <congestion>0</congestion>
         <prosumer id="2">
+            <energyNeed>4.0</energyNeed>
+            <energyGenerated>11.0</energyGenerated>
         </prosumer>
     </link>
     <link>
         <joule>1</joule>
         <capacity>30</capacity>
         <congestion>0</congestion>
-        <prosumer id="3"></prosumer>
+        <prosumer id="3">
+            <energyNeed>20.0</energyNeed>
+            <energyGenerated>14.0</energyGenerated>
+        </prosumer>
     </link>
 </node>
