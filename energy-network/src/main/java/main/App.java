@@ -12,7 +12,7 @@ import java.io.InputStreamReader;
 public class App 
 {
     public static void main( String[] args ) throws InterruptedException {
-        int numberProsumer = 10 ;
+        int numberProsumer = 21 ;
         File describe = new File("src/main/resources/arbre"+numberProsumer+".xml") ;
         File result = new File("src/main/results/result-arbre"+numberProsumer+".dot") ;
         negociationStrategy strategy = new zeuten(0.01, 100, 0.01) ;

@@ -97,13 +97,14 @@ public class EnergyNegociation {
                 for ( Prosumer prosumer : this.prosumers){
                     prosumer.lookForPartners(this.prosumers);
                 }
+                System.out.println("send the first proposals");
                 //Envoi des premières offrs
                 for (Prosumer prosumer : this.prosumers) {
                     prosumer.sendFirstProposals();
                 }
                 noEnd=false ;
             }
-
+            System.out.println("concession the partners");
             for(Prosumer prosumer : this.prosumers) {
                 noEnd = prosumer.ChoosePartnersConcession(); // Si les négociations ont redémarré, on veut renvoyer les propositions initiales
                 if (noEnd) {
@@ -127,7 +128,7 @@ public class EnergyNegociation {
         for( Accord accord : accords){
             Offer offer = accord.getOffer() ;
             Partner partner = accord.getPartner() ;
-            System.out.println(partner.getBuyer().getId()+" achète "+offer.getQuantity()+" pour "+offer.getAmount()+" à "+partner.getSeller().getId());
+            System.out.println(partner.getBuyer().getId()+" achète "+offer.getQuantity()+" pour "+offer.getAmount()+" à "+partner.getSeller().getId()+" avec "+partner.getSeller().getEnergyLost()+" pertes.");
             losses += offer.getLosses();
             congestions_costs+= offer.getCongestion_cost() ;
 
@@ -143,6 +144,7 @@ public class EnergyNegociation {
         double energyToBuy = 0 ;
         double energysend = 0 ;
         double energyreceived = 0 ;
+        double losses = 0;
         for(Prosumer prosumer : this.initProsumers){
             if (prosumer.isBuyer()){
                 energyToBuy += prosumer.energyLeft() ;
@@ -150,12 +152,16 @@ public class EnergyNegociation {
             }else{
                 energyToSold += prosumer.energyLeft() ;
                 energysend += prosumer.getEnergySend()+prosumer.getEnergyLost();
+                losses+=prosumer.getEnergyLost() ;
+
             }
         }
         System.out.println("\n Energie restante à vendre : "+energyToSold);
         System.out.println("Energie restante à acheter : "+energyToBuy);
         System.out.println("Energie envoyée : "+energysend);
         System.out.println("Energie recue : "+energyreceived);
+        System.out.println("Pourcentage de pertes : "+100*losses/energysend);
+        System.out.println(this.links.size()+ " liens");
         Graph g = new Graph(this.bus, this.links) ;
         g.genereGraph(result);
     }

@@ -82,24 +82,29 @@ public class Prosumer extends Node {
         }else {
             System.out.println("\nseller -- need "+this.energyLeft());
         }
-        if(!this.strategy.checkEnd(this)) {
+        int end = this.strategy.checkEnd(this);
+        if(end==1) {
             System.out.println("Negociations restart");
             return true; // redémarrage des négociations
-        }
-        if(this.isTerminate()){
-            System.out.println("nothing else to do");
+        }else if(end == 0){
+            System.out.println("Passe mon tour");
+            return false ; // Il passe juste son tour en attendant que la topographie change
         }else{
-            System.out.println("Look for concessions");
-            ArrayList<Pair<Prosumer, Double>> choose ;
-            choose = this.isBuyer() ? strategy.chooseSellerPartnerConcession(this) : strategy.chooseBuyerPartnerConcession(this) ;// ON choisit les partenaires
-            if(choose != null) {
-                System.out.println(this.getId()+" make concessions à "+choose.size()+" prosumers");
-                for (Pair<Prosumer, Double> ite : choose) {
-                    strategy.makeConcession(this, ite.getKey(), ite.getValue()); // On fait les concessions
+            if(this.isTerminate()){ // il ne négocie plus du tout
+                System.out.println("nothing else to do");
+            }else{
+                System.out.println("Look for concessions"); // Il fait les concessions
+                ArrayList<Pair<Prosumer, Double>> choose ;
+                choose = this.isBuyer() ? strategy.chooseSellerPartnerConcession(this) : strategy.chooseBuyerPartnerConcession(this) ;// ON choisit les partenaires
+                if(choose != null) {
+                    System.out.println(this.getId()+" make concessions à "+choose.size()+" prosumers");
+                    for (Pair<Prosumer, Double> ite : choose) {
+                        strategy.makeConcession(this, ite.getKey(), ite.getValue()); // On fait les concessions
+                    }
                 }
             }
-
         }
+
         return false ;
 
 

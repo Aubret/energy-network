@@ -20,23 +20,16 @@
                 <congestion>0</congestion>
                 <prosumer id="3">
                     <energyNeed>5.0</energyNeed>
-                    <energyGenerated>0.0</energyGenerated>
+                    <energyGenerated>9.0</energyGenerated>
                 </prosumer>
             </link>
-        </node>
-    </link>
-    <link>
-        <joule>1</joule>
-        <capacity>20</capacity>
-        <congestion>0</congestion>
-        <node id="9">
             <link>
                 <joule>1</joule>
                 <capacity>20</capacity>
                 <congestion>0</congestion>
                 <prosumer id="1">
                     <energyNeed>20.0</energyNeed>
-                    <energyGenerated>19.0</energyGenerated>
+                    <energyGenerated>24.0</energyGenerated>
                 </prosumer>
             </link>
         </node>
@@ -51,7 +44,7 @@
                 <capacity>20</capacity>
                 <congestion>0</congestion>
                 <prosumer id="4">
-                    <energyNeed>15.0</energyNeed>
+                    <energyNeed>22.0</energyNeed>
                     <energyGenerated>20.0</energyGenerated>
                 </prosumer>
             </link>

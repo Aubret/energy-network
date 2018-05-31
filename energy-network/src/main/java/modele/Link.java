@@ -19,7 +19,7 @@ public class Link implements DCPFBranch{
     private Node secondNode;
 
     public Link(){
-        this.susceptance = 10 ;
+        this.susceptance = 0.5;
     }
 
 

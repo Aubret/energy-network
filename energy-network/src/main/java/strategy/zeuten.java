@@ -26,6 +26,8 @@ public class zeuten implements negociationStrategy {
     private ArrayList<Accord> accords ;
     private double approximation ;
     private List<Prosumer> prosumers ;
+    private double losses ;
+    private double congestion_costs;
 
     private Integer approximation2 ;
 
@@ -36,6 +38,8 @@ public class zeuten implements negociationStrategy {
         this.accords = new ArrayList<Accord>();
         this.approximation = approximation ;
         this.approximation2 = (Double.valueOf(1/approximation)).intValue();
+        this.losses=0 ;
+        this.congestion_costs=0 ;
     }
 
     public void setProsumers(List<Prosumer> prosumers) {
@@ -107,7 +111,7 @@ public class zeuten implements negociationStrategy {
         Offer offer= new Offer(tarif, quantity);
         if(proposer.isBuyer()){
             while(!simulate(proposer, receiver, offer ) && quantity > 0){
-                quantity -= 0.1 ;
+                quantity -= Math.max(quantity/10, 0.1 ) ;
                 offer.setQuantity(quantity);
             }
             if(quantity > 0 /* && this.checkCongestionCost(offer )*/){
@@ -116,7 +120,7 @@ public class zeuten implements negociationStrategy {
             }
         }else{
             while(!simulate(receiver, proposer, offer ) && quantity > 0){
-                quantity -= 0.1 ;
+                quantity -= Math.max(quantity/10, 0.1 )  ;
                 offer.setQuantity(quantity);
             }
             if(quantity > 0 /*&& this.checkCongestionCost(offer )*/){
@@ -129,7 +133,23 @@ public class zeuten implements negociationStrategy {
     }
 
 
-    majLosses
+    /**
+     * Permet d'avoir un apercu de l'état des pertes et des couts de congestion actuellement sur le réseau
+     */
+    private void majLosses(){
+        this.solver.solve(this.powerSystem);
+        double losses =0 ;
+        double congestion_costs = 0;
+        for( Accord accord : this.accords){
+            Offer offer = accord.getOffer() ;
+            Partner partner = accord.getPartner() ;
+            losses += offer.getLosses();
+            congestion_costs+= offer.getCongestion_cost() ;
+
+        }
+        this.losses = losses ;
+        this.congestion_costs = congestion_costs ;
+    }
 
     /**
      * Simulation  d'une offre pour le calcul des pertes  de congestion et de l'effet joule
@@ -157,9 +177,11 @@ public class zeuten implements negociationStrategy {
                 double flow = Math.abs(entry.getValue()) ;
                 losses += entry.getKey().getJoule() * flow / 100; // Pertes sur chaque lien
                 congestion_costs += 2 * flow/ entry.getKey().getCapacity() ;
-                //newFlow += Math.abs(entry.getValue()) ;
-                //System.out.println(entry.getValue()+" and lost : "+losses+" on the link between "+entry.getKey().getFirstNode().getId()+" and "+entry.getKey().getSecondNode().getId());
+                if(entry.getKey().getCapacity() ==0) // error in the xml file
+                    System.out.println("ID : "+entry.getKey().getFirstNode().getId());
             }
+            losses=losses-this.losses ;
+            congestion_costs = congestion_costs-this.congestion_costs ;
         }
         offer.setLosses(losses);
         offer.setCongestion_cost(congestion_costs);
@@ -202,13 +224,14 @@ public class zeuten implements negociationStrategy {
      * Vérifie si un prosumer doit encore chercher ou vendre de l'énergie
      * @param p
      */
-    public boolean checkEnd(Prosumer p) {
+    public int checkEnd(Prosumer p) {
         double mineUtility ;
         double hisUtility ;
         double mineUtility2 ;
         double hisUtility2;
         if(p.getPartners().isEmpty()){// Il a plus aucun partenaires, il arrete donc les négociations/
-            p.stopNegociations();
+            //p.stopNegociations();
+            return 0 ;
         }
         boolean stop = false ;
         boolean restart = false ;
@@ -221,7 +244,6 @@ public class zeuten implements negociationStrategy {
             //boolean success = p.isBuyer() ? simulate (p, ite.getKey(), offer) : simulate(ite.getKey(), p, offer); // est-ce que le vendeur peut gérer les pertes
             mineUtility = this.calculUtility(p, other, offer) ;
             hisUtility = this.calculUtility(other, p, offer) ;
-
             // u s (x s ) ≤ u b (x s ),
             Offer offer2 = !p.isBuyer() ? ite.getValue().getSellerProposition() : ite.getValue().getBuyerProposition() ;
             //On remplit le taux de congestion et les pertes de l'offre en simulant sur le réseau
@@ -259,6 +281,7 @@ public class zeuten implements negociationStrategy {
                         stop = true ;
                     }
                 }
+                this.majLosses();
                 break ;
             }
         }
@@ -268,8 +291,8 @@ public class zeuten implements negociationStrategy {
         if(stop)
             p.stopNegociations() ;
         if(restart)
-            return false ;
-        return true ;
+            return 1 ;
+        return 2 ;
     }
 
     /**
@@ -406,15 +429,6 @@ public class zeuten implements negociationStrategy {
                 continue ;
             if(!ite.getKey().isBuyer() && ite.getKey().energyLeft() <= 0)
                 continue ;
-            /*if(!ite.getValue().isToConsider()){
-                ite.getValue().setToConsider(true);
-                continue ;
-            }*/
-            /*if(!ite.getValue().getSellerProposition().isEvaluate())
-                simulate(ite.getValue().getBuyer(),ite.getValue().getSeller(),ite.getValue().getSellerProposition());
-            if(!ite.getValue().getBuyerProposition().isEvaluate())
-                simulate(ite.getValue().getBuyer(),ite.getValue().getSeller(),ite.getValue().getBuyerProposition());*/
-
 
             double buyersUtility = calculUtility(ite.getValue().getBuyer(), ite.getValue().getSeller(),ite.getValue().getBuyerProposition());
             double buyersUtilityWithSellersOffer = calculUtility(ite.getValue().getBuyer(), ite.getValue().getSeller(),ite.getValue().getSellerProposition());

@@ -9,6 +9,15 @@
                 <joule>1</joule>
                 <capacity>20</capacity>
                 <congestion>0</congestion>
+                <prosumer id="201">
+                    <energyNeed>12.0</energyNeed>
+                    <energyGenerated>27.0</energyGenerated>
+                </prosumer>
+            </link>
+            <link>
+                <joule>1</joule>
+                <capacity>20</capacity>
+                <congestion>0</congestion>
                 <node id="20">
                     <link>
                         <joule>1</joule>
@@ -101,6 +110,15 @@
                 <capacity>80</capacity>
                 <congestion>0</congestion>
                 <node id="116">
+                    <link>
+                        <joule>1</joule>
+                        <capacity>40</capacity>
+                        <congestion>0</congestion>
+                        <prosumer id="203">
+                            <energyNeed>12.0</energyNeed>
+                            <energyGenerated>5.0</energyGenerated>
+                        </prosumer>
+                    </link>
                     <link>
                         <joule>1</joule>
                         <capacity>40</capacity>
